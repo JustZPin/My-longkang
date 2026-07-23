@@ -1,0 +1,11 @@
+# Robot (Raspberry Pi) side dependencies.
+# These install on Raspberry Pi OS, not on a laptop.
+#
+# picamera2 and libcamera are normally provided by the system (apt):
+#   sudo apt install -y python3-picamera2 libcamera-apps
+# and are listed here for reference only.
+
+RPi.GPIO>=0.7
+numpy>=1.21
+opencv-python>=4.5
+# picamera2   # provided by the OS (python3-picamera2)

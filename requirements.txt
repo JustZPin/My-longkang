@@ -1,0 +1,9 @@
+# Ground-station (laptop side) dependencies.
+#
+# NOTE: The default opencv-python wheels from PyPI are usually built WITHOUT
+# GStreamer support. To receive the robot's UDP H.264 stream you need an
+# OpenCV built WITH GStreamer, plus GStreamer installed on the system.
+# See docs/setup.md. numpy is pulled in by opencv but pinned here explicitly.
+
+opencv-python>=4.5
+numpy>=1.21
