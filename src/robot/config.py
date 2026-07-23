@@ -30,12 +30,16 @@ STREAM_PORT = 5002                # must match ground_station.config.UDP_PORT
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 
-# === Omni-wheel motors (4-wheel omni, L298N H-bridge) ===
-# Confirmed: 4-wheel omni base driven by L298N boards. Each wheel maps to one
-# L298N channel: in1/in2 = IN1/IN2 (direction), en = ENA/ENB (PWM speed). One
-# L298N drives 2 motors, so 4 wheels = two L298N boards.
-# Pins below are placeholders on free GPIOs (chosen to avoid the sensor/LED/
-# buzzer/PS2 pins above) — set them to your actual wiring.
+# === Omni-wheel motors (4-wheel omni, L293D H-bridge) ===
+# LongKang Hero uses 4 TT motors + 4 omni wheels driven by 2x L293D drivers.
+# Each wheel maps to one L293D channel: in1/in2 = direction, en = enable (PWM
+# speed). One L293D drives 2 motors, so 4 wheels = two L293D boards.
+#
+# NOTE ON HARDWARE: locomotion runs on an Arduino Uno R3 (PS2 controller + the
+# two L293D drivers are wired to the Uno; see firmware/arduino/), while the
+# Raspberry Pi 5 handles sensing, camera, clearing and app comms. These pins are
+# only used by the optional Pi-side driver (motors.MotorController) and are
+# placeholders on free GPIOs — set them to your wiring if you drive from the Pi.
 MOTORS = {
     "FL": {"in1": 5,  "in2": 6,  "en": 12},   # front-left
     "FR": {"in1": 16, "in2": 19, "en": 18},   # front-right

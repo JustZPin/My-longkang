@@ -1,19 +1,18 @@
-"""Flood robot (Raspberry Pi side).
+"""LongKang Hero — Raspberry Pi 5 side.
 
-Streams the drain camera to the laptop ground station, raises LED/buzzer flood
-alerts from an ultrasonic water-distance reading, and is driven by a PS2
-controller (bit-banged over GPIO).
+Streams the drain camera, raises LED/buzzer flood alerts from an ultrasonic
+water-distance reading, and runs on-robot RGB drain monitoring. Locomotion runs
+separately on an Arduino Uno R3 (see firmware/arduino/).
 
 Modules:
-  config          - GPIO pins, stream host/port, LED thresholds
-  sensors         - ultrasonic distance, LED tier, buzzer
-  motion_ps2      - PS2 controller driver (primary)
-  motion_ps2_alt  - alternate PS2 bit-bang reader (kept for reference)
-  motors          - omni-wheel motor driver + PS2->motion mapping
-  camera          - libcamera-vid -> UDP H.264 stream-out
-  main            - orchestration loop
+  config      - GPIO pins, motor pins (Pi-drive option), stream host/port, thresholds
+  sensors     - ultrasonic distance, LED tier, buzzer
+  vision      - on-robot RGB drain monitoring (leaves vs rubbish)
+  motors      - omni-wheel mixing spec (mirrored by the Arduino firmware)
+  camera      - libcamera-vid -> UDP H.264 stream-out
+  main        - sensing + streaming orchestration loop
 
-Modules import RPi.GPIO lazily so the package can be imported off-Pi without it.
-Colour classification lives on the laptop (HSV); the old on-robot RGB path is
-archived under legacy/.
+Modules import RPi.GPIO / cv2 lazily so the package imports off-Pi.
+The old Raspberry-Pi PS2 readers are archived under legacy/ now that the
+Arduino owns locomotion.
 """

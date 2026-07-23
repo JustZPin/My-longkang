@@ -1,102 +1,162 @@
-# My-longkang
+# LongKang Hero × MyLongkang
 
-Smart drain-monitoring robot with the **MyLongkang** app — an omni-wheel
-Raspberry Pi robot that live-streams drains, flags rising water with LED/buzzer
-flood alerts, and classifies blockages (paper, aluminium, glass).
+**Smart, modular flood-mitigation system that stops flooding at its root — the
+blocked drain.** An omni-wheel robot (**LongKang Hero**) patrols drains,
+detects and clears waste blockages, and streams live status to a mobile app
+(**MyLongkang**) for real-time monitoring and alerts.
 
 > *"Longkang"* is the Malay/Singlish word for a drain or monsoon canal.
 
-## System overview
+**Team EEyerrr — Universiti Malaya** · Edmat-46 · Problem Statement No. 3
+Chua Zhu Heng (Leader) · Lim Zhi Pin · Low Jia Qi · Chin Pei Kang
 
-The system has two sides that talk over Wi-Fi (UDP / H.264):
+Aligned with **UN SDG 6** (Clean Water & Sanitation), **SDG 11** (Sustainable
+Cities & Communities), and **SDG 13** (Climate Action).
 
-| Side | Runs on | Role |
-|------|---------|------|
-| **Robot** (`src/robot/`) | Raspberry Pi | PS2-driven omni-wheel base, ultrasonic water-distance sensing with LED/buzzer flood alerts, and H.264 camera stream-out. |
-| **Ground station** (`src/ground_station/`) | Laptop | Receives the H.264 stream and classifies drain-blocking waste from the centre of the frame. |
+---
 
-Both sides talk over the same UDP H.264 link (`192.168.121.254:5002`): the robot
-streams, the laptop receives and classifies.
+## The problem: when drains fail, cities drown
+
+- **17** flood hotspots and **171** flood-prone locations across **11**
+  parliamentary constituencies in Kuala Lumpur (DBKL).
+- Some city drains now carry only **half** their designed capacity, mainly from
+  **silt and garbage accumulation**.
+- Malaysia's flood-related losses reached **RM933.4 million in 2024** (up from
+  RM755.4M in 2023) — about **0.05% of nominal GDP**. Losses fall on living
+  quarters (42.2%), public assets & infrastructure (35.3%), and agriculture
+  (22.5%).
+- The 2021–2022 floods left **54 dead**, displaced **71,000+**, and affected
+  **125,000+** people.
+
+Blocked drains are an upstream, addressable cause. LongKang Hero targets it
+directly.
+
+## The solution: from detection to action
+
+A modular smart system that **identifies** and **clears** drain blockages
+before they escalate into floods — through rapid response and real-time
+monitoring. Four feature pillars:
+
+| Mode | Pillar | What it does |
+|------|--------|--------------|
+| Active | **Drain monitoring** | Live camera + processing on Raspberry Pi 5 |
+| Active | **Blockage detection** | Ultrasonic distance → LED tier + buzzer alerts |
+| Active | **Clearing the obstruction** | High-pressure water jet flushes the blockage |
+| Passive | **Mobile app integration** | Live data, alerts & maps in MyLongkang |
+
+---
 
 ## Repository layout
 
+This repo contains the **software**: the Raspberry-Pi robot control code and the
+laptop ground-station classifier.
+
 ```
-My-longkang/
-├── README.md                 # this file
-├── requirements.txt          # Python dependencies
-├── LICENSE
-├── .gitignore
+LongKang-Hero/
+├── README.md
+├── requirements.txt          # laptop / ground-station deps
+├── requirements-robot.txt    # Raspberry Pi deps
+├── LICENSE · .gitignore · pytest.ini
 ├── src/
-│   ├── ground_station/       # laptop side (split by concern)
-│   │   ├── __init__.py
+│   ├── ground_station/       # laptop side — receives stream, classifies waste
 │   │   ├── config.py         # UDP port, flip method, GStreamer pipeline
 │   │   ├── camera.py         # StreamReceiver — receive H.264 frames over UDP
-│   │   ├── classifier.py     # classify_waste() — VER5 HSV rules
+│   │   ├── classifier.py     # classify_waste() — HSV rules
 │   │   ├── overlay.py        # sample centre HSV + draw annotations
-│   │   └── main.py           # entry point wiring the above together
-│   └── robot/                # Raspberry Pi side (split by concern)
-│       ├── __init__.py
+│   │   └── main.py           # entry point
+│   └── robot/                # Raspberry Pi 5 side
 │       ├── config.py         # GPIO pins, motor pins, stream host/port, thresholds
-│       ├── sensors.py        # ultrasonic distance + LED tier + buzzer
-│       ├── motion_ps2.py     # PS2 controller driver (primary)
-│       ├── motion_ps2_alt.py # alternate PS2 bit-bang reader (reference)
-│       ├── motors.py         # omni-wheel driver + PS2->motion mapping
+│       ├── sensors.py        # HC-SR04 distance + RED/YELLOW/GREEN LED + buzzer
+│       ├── vision.py         # on-robot RGB drain monitoring (leaves vs rubbish)
+│       ├── motors.py         # omni-wheel mixing spec (mirrored by Arduino firmware)
 │       ├── camera.py         # libcamera-vid -> UDP H.264 stream-out
-│       └── main.py           # orchestration loop
-├── scripts/
-│   ├── stream_robot.sh       # Pi: libcamera-vid | gst udpsink
-│   └── view_laptop.sh        # laptop: gst view-only receive
-├── tests/
-│   ├── test_classifier.py    # classifier unit tests (no camera needed)
-│   ├── test_overlay.py       # overlay HSV sampling (needs OpenCV; else skipped)
-│   └── test_motion.py        # PS2 -> motion control (fake GPIO, no hardware)
-├── legacy/                   # archived, not in the live pipeline
-│   └── on_robot_rgb_vision.py  # old on-Pi RGB detection (superseded by HSV)
-└── docs/
-    └── setup.md              # GStreamer / OpenCV install notes
+│       └── main.py           # sensing + streaming orchestration
+├── firmware/
+│   └── arduino/              # Arduino Uno R3 locomotion (PS2 -> 2x L293D -> 4 wheels)
+│       └── longkang_locomotion/longkang_locomotion.ino
+├── scripts/                  # stream_robot.sh · view_laptop.sh
+├── tests/                    # classifier, overlay, motion (fake GPIO) — pytest
+└── legacy/                   # archived Pi-side PS2 readers (superseded by Arduino)
 ```
 
-## Quick start (ground station)
+> **Scope note:** the water-jet actuation control and the MyLongkang mobile app
+> are part of the wider system but are **not** in this repository yet. See
+> [Hardware](#the-hardware-longkang-hero) and [MyLongkang app](#the-app-mylongkang).
 
-1. Install GStreamer and an OpenCV build **with GStreamer support** —
-   see [docs/setup.md](docs/setup.md).
-2. Install Python deps:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Start the robot so it begins streaming (see below).
-4. Run the ground station:
-   ```bash
-   python -m src.ground_station.main
-   # or
-   python src/ground_station/main.py
-   ```
-5. Press `q` in the video window to quit.
+## Running the software
 
-## Quick start (robot / Raspberry Pi)
-
-Requires a Raspberry Pi with `picamera2`, `RPi.GPIO`, OpenCV, GStreamer, and
-`libcamera-apps`. Wiring (BCM pins) lives in
-[src/robot/config.py](src/robot/config.py).
-
+**Locomotion (Arduino Uno R3)** — flash the sketch (needs the `PS2X_lib`
+library); see [firmware/arduino/](firmware/arduino/):
 ```bash
-# option A: run the orchestration loop (stream + flood alerts + PS2 polling)
-python -m src.robot.main
+arduino-cli compile --fqbn arduino:avr:uno firmware/arduino/longkang_locomotion
+arduino-cli upload  --fqbn arduino:avr:uno -p <PORT> firmware/arduino/longkang_locomotion
+```
 
-# option B: just start the video stream (shell one-liner)
+**Robot (Raspberry Pi 5)** — needs `picamera2`, `RPi.GPIO`, OpenCV, GStreamer,
+`libcamera-apps`:
+```bash
+pip install -r requirements-robot.txt
+python -m src.robot.main            # flood-alert sensing + H.264 stream
+python -m src.robot.vision          # on-Pi RGB drain monitoring (leaves vs rubbish)
+# or just start the video stream:
 bash scripts/stream_robot.sh
 ```
 
-The robot's role breaks down as:
+**Ground station (laptop)** — needs OpenCV built **with GStreamer**
+(see [docs/setup.md](docs/setup.md)):
+```bash
+pip install -r requirements.txt
+python -m src.ground_station.main  # receive + classify; press q to quit
+```
 
-| Concern | Module | Notes |
-|---------|--------|-------|
-| Camera stream-out | [camera.py](src/robot/camera.py) | `libcamera-vid` → RTP/UDP H.264 to the laptop |
-| Flood alert | [sensors.py](src/robot/sensors.py) | HC-SR04 distance → RED/YELLOW/GREEN LED + buzzer |
-| Motion input | [motion_ps2.py](src/robot/motion_ps2.py) | PS2 controller, bit-banged over GPIO |
-| Motion drive | [motors.py](src/robot/motors.py) | maps PS2 buttons → omni-wheel speeds → H-bridge PWM |
+**Tests** (no hardware needed):
+```bash
+python -m pytest
+```
 
-### Driving controls (PS2)
+---
+
+## The hardware: LongKang Hero
+
+Bill of materials for **Prototype_01** — total **≈ RM 1,238**.
+
+| Subsystem | Key parts |
+|-----------|-----------|
+| **Compute** | Raspberry Pi 5 · Pi Camera Module 3 |
+| **Locomotion** | PS2 wireless controller → Arduino Uno R3 → 2× **L293D** → 4× TT motor → 4× omni wheel |
+| **Sensing / alerts** | HC-SR04 ultrasonic · Red/Yellow/Green LEDs · passive buzzer |
+| **Clearing (water jet)** | water reservoir + silicone tubing → **FL-3201 diaphragm pump (~60–100 PSI)** → 12V normally-closed solenoid valve → focused high-pressure nozzle |
+| **Waterproofing** | TICONN junction box · PCB conformal coating · Pi Camera protective dome · heat-shrink + silicone sealant |
+| **Water-based (target design)** | HDPE + foam-reinforced floating base · 2× IPX8 underwater thrusters · directional steering fins |
+
+### How blockage detection works
+
+The HC-SR04 measures the distance to the nearest obstruction and drives a
+traffic-light alert. Thresholds live in
+[src/robot/config.py](src/robot/config.py) and match the deck:
+
+| Zone | Distance | LED | Meaning |
+|------|----------|-----|---------|
+| Safe | 2–3 m | 🟢 Green | Obstruction far — no action |
+| Caution | 1–2 m | 🟡 Yellow | Approaching — prepare to slow |
+| Critical | 0–1 m | 🔴 Red | Very close — immediate action |
+
+The buzzer emits distinct patterns per zone. The Pi Camera adds visual
+confirmation of debris/rubbish and water-flow anomalies (see
+[colour detection](#drain-monitoring-vision-rgb) below).
+
+### How clearing works
+
+When the ultrasonic sensor and camera confirm a blockage, the Raspberry Pi 5
+triggers the pump + solenoid valve to fire a focused water jet through the
+nozzle, and simultaneously raises a **visual alert** (LED), **sound alert**
+(buzzer), and pushes **real-time data to MyLongkang**.
+
+### Driving controls (PS2 → Arduino Uno)
+
+Locomotion is a self-contained **Arduino Uno R3** sketch
+([firmware/arduino/](firmware/arduino/)): it reads the PS2 controller and drives
+the two L293D boards.
 
 | Button | Motion |
 |--------|--------|
@@ -104,57 +164,74 @@ The robot's role breaks down as:
 | D-pad Left / Right | strafe left / right |
 | L1 / R1 | rotate left / right |
 
-Diagonals work (e.g. Up + Right). Drive is a **4-wheel omni base on L298N
-H-bridges** (one channel per wheel: in1/in2 + PWM enable); motor pins are in
-[src/robot/config.py](src/robot/config.py) (`MOTORS`) — set them to match your
-wiring. The whole PS2 → motion path
-is unit-tested with a fake GPIO in
-[tests/test_motion.py](tests/test_motion.py), so the logic is verified without
-a Pi or motors attached.
+Diagonals work (e.g. Up+Right). The omni-wheel mixing in the sketch is the same
+logic defined and unit-tested in Python
+([motors.py](src/robot/motors.py) / [tests/test_motion.py](tests/test_motion.py))
+— no Pi or motors needed to verify the maths.
 
-## How blockage classification works
+### Drain-monitoring vision (RGB)
 
-The classifier samples the average HSV colour in a small square at the centre of
-each frame and maps it to a likely drain-blocking material:
+The active vision path is **on-robot RGB detection**
+([vision.py](src/robot/vision.py)), matching the deck's "Drain Monitoring
+System":
 
-| Label              | Rough colour cue          |
-|--------------------|---------------------------|
-| Paper (White)      | low saturation, bright    |
-| Aluminium (Red)    | red hue, saturated        |
-| Aluminium (Blue)   | blue hue, saturated       |
-| Glass (Green)      | green hue                 |
-| Glass (Black)      | low saturation, dark      |
-| Other (Yellow)     | yellow hue, very saturated|
-| Other Waste        | anything else             |
+| Colour | Meaning |
+|--------|---------|
+| 🔴 Red | Dry / semi-wet leaves & plant material |
+| 🔵 Blue | Rubbish |
 
-The rules live in [src/ground_station/classifier.py](src/ground_station/classifier.py)
-and are covered by [tests/test_classifier.py](tests/test_classifier.py).
+Run it live on the Pi with `python -m src.robot.vision`. A separate laptop
+ground-station classifier ([classifier.py](src/ground_station/classifier.py))
+also exists for the UDP-stream path and works in HSV (Paper / Aluminium / Glass).
 
-> **One colour path:** classification is **HSV, on the laptop only**. An older
-> on-robot **RGB** detector existed but is superseded and archived under
-> [legacy/](legacy/) — it was never part of the streaming pipeline.
+---
 
-## Configuration
+## The app: MyLongkang
 
-Stream settings default to the working robot setup and live in
-[src/ground_station/config.py](src/ground_station/config.py):
+A Flutter/Dart mobile app (Firebase backend, Google Maps API) — Phase_01 BOM
+**≈ RM 866/setup**. Features shown in the deck:
 
-| Setting     | Default           |
-|-------------|-------------------|
-| Robot host  | `192.168.121.254` |
-| UDP port    | `5002`            |
-| Flip method | `2` (180°)        |
+- **Push notifications** — real-time alerts when a robot detects a heavily or
+  slightly blocked drain, even when the app is closed.
+- **Real-time drain-condition map** — colour-coded segments: 🟢 no blockage,
+  🟡 slightly blocked, 🔴 heavily blocked, plus robot **centerpoints**.
+- **Robot location tracking** — live position of each robot on the map.
+- **Robot & drain info pages** (Red / Yellow / Green status) — real-time
+  monitoring feed, battery level, signal strength, last maintenance date, last
+  inspection time, urgency level, and drain status.
+- **Drain history log** — past inspections and blockage levels for trend
+  analysis and preventive maintenance.
+- **Issue reporting** and **centerpoint integration** for coordinated,
+  scalable deployment.
 
-Both devices must be on the same Wi-Fi network, and the port must match the robot.
+---
 
-## Running the tests
+## Competitive advantage
 
-```bash
-python -m pytest
-```
+Against Bandicoot Mini, Sewer Robotics and general pipe cleaners, LongKang Hero
+is the only option combining **all** of: real-time mobile-app integration,
+camera visual monitoring, sensor-based blockage detection, water-jet cleaning,
+integrated LED/buzzer alerts, AI-ready predictive maintenance, and a compact,
+portable design.
 
-The classifier tests are pure functions and need no camera or GStreamer.
+## Roadmap
+
+- **AI-powered blockage classification** — auto-classify plastic / sediment /
+  vegetation from captured images.
+- **Environmental monitoring** — water level, temperature & humidity, water pH.
+- **Thermal vision** — FLIR Lepton 3.5 + PureThermal 2 for low-light/heat
+  analysis.
+- **Extendable arm / probe** — reach into water without immersing the body.
+- **Vision beyond flooding** — evolve into a smart tunnel-exploration and
+  underground-mapping platform (live feed + sensor-fusion mapping + AI-assisted
+  navigation).
+
+## Alliances
+
+Government (DBKL, PLANMalaysia, JPS — Dept. of Irrigation & Drainage) and
+Universiti Malaya (JPPHB UM, Jabatan Keselamatan, UM Sustainable Development
+Centre).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) · Presented by Team EEyerrr, Universiti Malaya.

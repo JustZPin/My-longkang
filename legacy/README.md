@@ -1,18 +1,13 @@
 # legacy / archived code
 
-Code kept for reference but **not part of the live pipeline**.
+Code kept for reference but **not part of the live system**.
 
-## `on_robot_rgb_vision.py`
+## `motion_ps2_pi.py` and `motion_ps2_pi_alt.py`
 
-The earlier **on-robot RGB colour detection** (`detect_red/green/blue_rgb`,
-`highlight_color`, `detect_black_white`). It processed frames locally on the Pi.
+Raspberry-Pi (`RPi.GPIO`) bit-bang PS2 controller readers. Locomotion now runs
+on the **Arduino Uno R3** (see [firmware/arduino/](../firmware/arduino/)), which
+reads the PS2 controller and drives the L293D motor drivers directly, so these
+Pi-side readers are superseded.
 
-The winning architecture instead **streams** the camera to the laptop
-(`libcamera-vid` → UDP), where the **HSV** classifier
-(`src/ground_station/classifier.py`) does the colour work. The Pi can't both
-hand its camera to `libcamera-vid` and run this local OpenCV path at once, so
-this module is unused in the streaming setup.
-
-Colour classification now lives in **one place: HSV, on the laptop.**
-
-`test_on_robot_rgb_vision.py` is the matching test, moved here too.
+The omni-wheel mixing they fed into is preserved and unit-tested in
+`src/robot/motors.py` — the Arduino firmware mirrors those equations.

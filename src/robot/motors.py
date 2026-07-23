@@ -1,20 +1,24 @@
-"""Omni-wheel motor driver + PS2-button -> motion mapping.
+"""Omni-wheel motion mixing (tested spec) + optional Raspberry-Pi motor driver.
 
-Two layers, kept separate so the *logic* is testable without hardware:
+LongKang Hero's live locomotion runs on an **Arduino Uno R3** (PS2 -> 2x L293D
+-> 4 omni wheels); see firmware/arduino/. This module is the reference for that
+firmware: the pure functions below are the omni-mixing spec the sketch mirrors,
+and they are unit-tested in tests/test_motion.py so the logic is verified
+without hardware. Keep the sketch and these equations in sync.
 
-  1. Pure functions (no GPIO):
+Two layers:
+
+  1. Pure functions (no GPIO) - the shared spec:
        buttons_to_velocity(pressed) -> (vx, vy, omega)
        mix(vx, vy, omega)           -> (fl, fr, rl, rr) wheel speeds, each -1..1
-  2. MotorController: turns wheel speeds into GPIO direction pins + PWM duty.
-     The GPIO backend is injectable, so tests use a fake and assert the outputs.
+  2. MotorController: optional Raspberry-Pi GPIO driver (used if you drive the
+     L293D from the Pi instead of the Arduino). GPIO backend is injectable, so
+     tests use a fake and assert the outputs.
 
 Sign convention:
   vy  = forward (+) / reverse (-)
   vx  = strafe right (+) / left (-)
   omega = rotate clockwise / right (+) / left (-)
-
-Hardware: 4-wheel omni base driven by L298N H-bridges (see config.MOTORS) —
-one L298N channel per wheel (in1/in2 direction + en PWM speed).
 """
 try:
     import RPi.GPIO as GPIO
